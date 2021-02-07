@@ -1,0 +1,218 @@
+import React, { Component, Children, cloneElement, forwardRef, Fragment, isValidElement } from "react";
+import { CurlContext, ContextInterface } from "../context";
+import {
+  Map
+} from "immutable";
+import {
+  AxiosResponse,
+  AxiosRequestConfig
+} from "axios";
+
+type MissionType = Promise<AxiosResponse<any>>;
+
+export interface CurlHocInterface extends ContextInterface {
+  authentication : boolean,
+  setFetching : boolean,
+};
+
+type CurlRequestType = (url : string, params? : object, configs? : AxiosRequestConfig) => MissionType;
+
+export interface ComponentCurlInterface {
+  request : (config : AxiosRequestConfig) => MissionType,
+  get : CurlRequestType,
+  post : CurlRequestType,
+  download : (url : string, params? : object, configs? : AxiosRequestConfig) => void,
+  upload : (url : string, params? : object, uploadProgress? : (percent : number) => void, configs? : AxiosRequestConfig) => MissionType,
+  createLink : (url : string, params? : object, configs? : AxiosRequestConfig) => Promise<any>,
+}
+
+class CurlHoc extends Component<CurlHocInterface, {
+  fetching : Map<MissionType, boolean>
+}> {
+  authentication : ContextInterface["auth"];
+  mounted : boolean;
+  sourceCurl : ContextInterface["curl"];
+  curl : ComponentCurlInterface;
+  constructor(props : CurlHocInterface) {
+    super(props);
+    const { authentication = true, auth = () => true, curl : sourceCurl } = props;
+    this.authentication = authentication ? auth : () => true;
+    this.mounted = false;
+    this.sourceCurl = sourceCurl;
+    this.state = {
+      fetching : Map()
+    }
+    this.curl = this.generateCurl();
+  }
+
+  Break(){
+    const result = !this.mounted || (!this.authentication());
+    return result;
+  };
+
+  resetFetching = (name : MissionType) => {
+    this.setState((state) => {
+      const { fetching } = state;
+      const newFetching = fetching.delete(name);
+      return {
+        fetching : newFetching
+      };
+    });
+  }
+
+  autoRegister = (mission : MissionType) => {
+		setTimeout(() => {
+      if(this.props.setFetching){
+        if (this.Break()) {
+          return mission;
+        }
+        this.setState((state) => {
+          const { fetching } = state;
+          const newFetching = fetching.set(mission, !!mission)
+          return {
+            fetching : newFetching
+          };
+        });
+        Promise.all([mission])
+          .then(res => {
+            if (this.Break()) {
+              return;
+            }
+            this.resetFetching(mission);
+          }).catch(e => {
+            if (this.Break()) {
+              return;
+            }
+            this.resetFetching(mission);
+          })
+      }
+    })
+		return mission;
+	}
+
+  resResponse(response : any, res : any){
+    if (!this.mounted) {
+      // rej();
+      return;
+    }
+    res(response);
+  };
+
+  errorHandle(error : any, rej : any){
+    if (!this.mounted) {
+      // rej();
+      return;
+    }
+    rej(error);
+  };
+
+  generateCurl() : ComponentCurlInterface {
+    return {
+      request : (config) => this.autoRegister(new Promise((res, rej) => {
+        if (this.Break()){
+          rej();
+          return;
+        }
+        this.sourceCurl.request(config)
+          .then(response => this.resResponse(response, res))
+          .catch(error => this.errorHandle(error, rej));
+      })),
+      get: (url, params, config) => this.autoRegister(new Promise((res, rej) => {
+        if (this.Break()) {
+          rej();
+          return;
+        }
+        this.sourceCurl.get(url, params, config)
+          .then(response => this.resResponse(response, res))
+          .catch(error => this.errorHandle(error, rej));
+      })),
+      post: (url, data, config) => this.autoRegister(new Promise((res, rej) => {
+        if (this.Break()) {
+          rej();
+          return;
+        }
+        this.sourceCurl.post(url, data, config)
+          .then(response => this.resResponse(response, res))
+          .catch(error => this.errorHandle(error, rej));
+      })),
+      download: (url, data, config) => {
+        if (!this.authentication()) {
+          // rej();
+          return;
+        }
+        this.sourceCurl.download(url, data, config)
+      },
+      upload : (url, data, uploadProgress, config = {}) => this.autoRegister(new Promise((res, rej) => {
+        if(this.Break()){
+          rej();
+          return;
+        }
+        this.sourceCurl.upload(url, data, uploadProgress, config)
+          .then(response => this.resResponse(response, res))
+          .catch(error => this.errorHandle(error, rej));
+      })),
+      createLink : (url, data, config) => this.autoRegister(new Promise((res, rej) => {
+        if (this.Break()){
+          rej();
+          return;
+        }
+        this.sourceCurl.createLink(url, data, config)
+          .then(response => this.resResponse(response, res))
+          .catch(error => this.errorHandle(error, rej));
+      })),
+    };
+  }
+
+  componentWillMount() {
+    this.mounted = true;
+  }
+
+  componentWillUnmount() {
+    this.mounted = false;
+  }
+
+  render() {
+    const { children } = this.props;
+    const { fetching } = this.state;
+    return (
+      <Fragment>
+        {Children.map(children, (item) => {
+          if(isValidElement(item)) {
+            return cloneElement(item, {
+              curl: this.curl,
+              fetching
+            });
+          }else{
+            return item;
+          }
+        })}
+      </Fragment>
+    );
+  }
+}
+
+const curlHocWraper = (authentication = true, setFetching = false) => (Com : any) => {
+  return forwardRef((props, ref) => {
+    return (<Fragment>
+      <CurlContext.Consumer>
+        {
+          value => {
+            const { auth, curl } = value as ContextInterface;
+            return (
+            <CurlHoc
+              authentication={authentication}
+              setFetching={setFetching}
+              auth={auth}
+              curl = { curl }
+            >
+              <Com {...props} ref={ref}/>
+            </CurlHoc>
+            )
+          }
+        }
+      </CurlContext.Consumer>
+    </Fragment>);
+  });
+};
+
+export default curlHocWraper;

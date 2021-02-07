@@ -1,0 +1,49 @@
+{
+  "name": "axios-react-wrapper",
+  "version": "1.0.0",
+  "description": "A tool to uniformly process the response of axios",
+  "main": "./lib/index.js",
+  "files": [
+    "lib/",
+    "package.json",
+    "README.md"
+  ],
+  "keyword" : "axios react wrapper axios-response-handle",
+  "scripts": {
+    "pub": "npm run build && ./checkVersion.sh && npm publish",
+    "build": "gulp && tsc",
+    "dev": "webpack-dev-server --config webpack.dev.config.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.10.2",
+    "@babel/plugin-proposal-class-properties": "^7.10.1",
+    "@babel/plugin-transform-arrow-functions": "^7.10.1",
+    "@babel/preset-env": "^7.10.2",
+    "@babel/preset-react": "^7.10.1",
+    "@babel/preset-typescript": "^7.12.1",
+    "@types/react": "^16.9.56",
+    "babel-loader": "^8.1.0",
+    "css-loader": "^3.5.3",
+    "gulp": "^4.0.2",
+    "gulp-babel": "^8.0.0",
+    "gulp-clean": "^0.4.0",
+    "gulp-terser": "^2.0.0",
+    "html-webpack-plugin": "^4.3.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "style-loader": "^1.2.1",
+    "typescript": "^4.0.5",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11",
+    "webpack-dev-server": "^3.11.0"
+  },
+  "dependencies": {
+    "axios": "^0.19.2",
+    "immutable": "^4.0.0-rc.12",
+    "query-string": "^6.13.4"
+  }
+}
