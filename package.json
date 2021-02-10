@@ -8,7 +8,7 @@
     "package.json",
     "README.md"
   ],
-  "keyword" : "axios react wrapper axios-response-handle",
+  "keyword" : "axios react wrapper axios-response-handle axios-react-wrapper",
   "scripts": {
     "pub": "npm run build && npm publish",
     "build": "gulp && tsc",
